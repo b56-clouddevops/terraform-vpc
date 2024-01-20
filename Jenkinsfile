@@ -1,32 +1,3 @@
-// pipeline {
-//     agent any 
-//     options {
-//         ansiColor('xterm')
-//     }
-//     parameters {
-//         choice(name: 'ENV', choices: ['dev', 'prod'], description: 'Select the environment')
-//         choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Select apply or destroy')
-//     }
-//     stages {
-//         stage('Terraform Init') {
-//             steps {
-//                 sh "terrafile -f env-dev/Terrafile"
-//                 sh "terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars"
-//             }
-//         }
-//         stage('Terraform Plan') {
-//             steps {
-//                 sh "terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}"
-//             }
-//         }
-//         stage('Terraform Apply') {
-//             steps {
-//                 sh "terraform ${ACTION} -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}"
-//             }
-//         }
-//     }
-// }
-
 pipeline {
     agent any 
     options {
@@ -37,131 +8,160 @@ pipeline {
         choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Select apply or destroy')
     }
     stages {
-        stage('Creating VPC') {
+        stage('Terraform Init') {
             steps {
-                dir('VPC') {
-                git branch: 'main', url: 'https://github.com/b56-clouddevops/terraform-vpc.git'
-                        sh '''
-                            terrafile -f env-dev/Terrafile
-                            terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
-                            terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
-                            terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
-                        '''
-                }
+                sh "terrafile -f env-dev/Terrafile"
+                sh "terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars"
             }
         }
-
-        stage('Creating Loadbalancers') {
+        stage('Terraform Plan') {
             steps {
-                dir('ALB') {
-                git branch: 'main', url: 'https://github.com/b56-clouddevops/terraform-loadbalancers.git'
-                        sh '''
-                            terrafile -f env-dev/Terrafile
-                            terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
-                            terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
-                            terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
-                            '''
-                }
+                sh "terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}"
             }
         }
-
-        stage('Creating Databases') {
+        stage('Terraform Apply') {
             steps {
-                dir('DB') {
-                git branch: 'main', url: 'https://github.com/b56-clouddevops/terraform-databases.git'
-                        sh '''
-                            rm -rf .terraform
-                            terrafile -f env-dev/Terrafile
-                            terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
-                            terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
-                            terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
-                        '''
-                }
+                sh "terraform ${ACTION} -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}"
             }
         }
+    }
+}
 
-        stage('Backend') {
-            parallel {
-                stage('creating Catalogue') {
-                    steps {
-                        dir('catalogue') {   
-                            git branch: 'main', url: 'https://github.com/b56-clouddevops/catalogue.git'
-                                sh ''' 
-                                    cd mutable-infra
-                                    terrafile -f env-${ENV}/Terrafile
-                                    terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
-                                    terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
-                                    terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
-                                ''' 
-                            }
-                        }
-                    } 
-                stage('creating User') {
-                    steps {
-                        dir('user') {  git branch: 'main', url: 'https://github.com/b56-clouddevops/user.git'
-                                sh ''' 
-                                    cd mutable-infra
-                                    terrafile -f env-${ENV}/Terrafile
-                                    terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
-                                    terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
-                                    terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
-                                ''' 
-                            }
-                        }
-                    }
-                stage('creating Cart') {
-                    steps {
-                        dir('cart') { git branch: 'main', url: 'https://github.com/b56-clouddevops/cart.git'
-                                sh ''' 
-                                    cd mutable-infra
-                                    terrafile -f env-${ENV}/Terrafile
-                                    terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
-                                    terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
-                                    terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
-                                ''' 
-                            }
-                        }
-                    }
-                stage('creating Shipping') {
-                    steps {
-                        dir('shipping') { git branch: 'main', url: 'https://github.com/b56-clouddevops/shipping.git'
-                                sh ''' 
-                                    cd mutable-infra
-                                    terrafile -f env-${ENV}/Terrafile
-                                    terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
-                                    terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
-                                    terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
-                                ''' 
-                            }
-                        }
-                    }
-                stage('creating Payment') {
-                    steps {
-                        dir('payment') { git branch: 'main', url: 'https://github.com/b56-clouddevops/payment.git'
-                                sh ''' 
-                                    cd mutable-infra
-                                    terrafile -f env-${ENV}/Terrafile
-                                    terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
-                                    terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
-                                    terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
-                                ''' 
-                                }
-                            }
-                        }
-                    }
-                }
-        stage('creating Frontend') {
-                steps {
-                        dir('frontend') {  git branch: 'main', url: 'https://github.com/b56-clouddevops/frontend.git'
-                            sh ''' 
-                                cd mutable-infra
-                                terrafile -f env-${ENV}/Terrafile
-                                terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
-                                terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
-                                terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
-                            ''' 
-                        }
-                    }
-                }
-            }
-        }
+// pipeline {
+//     agent any 
+//     options {
+//         ansiColor('xterm')
+//     }
+//     parameters {
+//         choice(name: 'ENV', choices: ['dev', 'prod'], description: 'Select the environment')
+//         choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Select apply or destroy')
+//     }
+//     stages {
+//         stage('Creating VPC') {
+//             steps {
+//                 dir('VPC') {
+//                 git branch: 'main', url: 'https://github.com/b56-clouddevops/terraform-vpc.git'
+//                         sh '''
+//                             terrafile -f env-dev/Terrafile
+//                             terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
+//                             terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+//                             terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+//                         '''
+//                 }
+//             }
+//         }
+
+//         stage('Creating Loadbalancers') {
+//             steps {
+//                 dir('ALB') {
+//                 git branch: 'main', url: 'https://github.com/b56-clouddevops/terraform-loadbalancers.git'
+//                         sh '''
+//                             terrafile -f env-dev/Terrafile
+//                             terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
+//                             terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+//                             terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+//                             '''
+//                 }
+//             }
+//         }
+
+//         stage('Creating Databases') {
+//             steps {
+//                 dir('DB') {
+//                 git branch: 'main', url: 'https://github.com/b56-clouddevops/terraform-databases.git'
+//                         sh '''
+//                             rm -rf .terraform
+//                             terrafile -f env-dev/Terrafile
+//                             terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
+//                             terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+//                             terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+//                         '''
+//                 }
+//             }
+//         }
+
+//         stage('Backend') {
+//             parallel {
+//                 stage('creating Catalogue') {
+//                     steps {
+//                         dir('catalogue') {   
+//                             git branch: 'main', url: 'https://github.com/b56-clouddevops/catalogue.git'
+//                                 sh ''' 
+//                                     cd mutable-infra
+//                                     terrafile -f env-${ENV}/Terrafile
+//                                     terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
+//                                     terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
+//                                     terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
+//                                 ''' 
+//                             }
+//                         }
+//                     } 
+//                 stage('creating User') {
+//                     steps {
+//                         dir('user') {  git branch: 'main', url: 'https://github.com/b56-clouddevops/user.git'
+//                                 sh ''' 
+//                                     cd mutable-infra
+//                                     terrafile -f env-${ENV}/Terrafile
+//                                     terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
+//                                     terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
+//                                     terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
+//                                 ''' 
+//                             }
+//                         }
+//                     }
+//                 stage('creating Cart') {
+//                     steps {
+//                         dir('cart') { git branch: 'main', url: 'https://github.com/b56-clouddevops/cart.git'
+//                                 sh ''' 
+//                                     cd mutable-infra
+//                                     terrafile -f env-${ENV}/Terrafile
+//                                     terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
+//                                     terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
+//                                     terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
+//                                 ''' 
+//                             }
+//                         }
+//                     }
+//                 stage('creating Shipping') {
+//                     steps {
+//                         dir('shipping') { git branch: 'main', url: 'https://github.com/b56-clouddevops/shipping.git'
+//                                 sh ''' 
+//                                     cd mutable-infra
+//                                     terrafile -f env-${ENV}/Terrafile
+//                                     terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
+//                                     terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
+//                                     terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
+//                                 ''' 
+//                             }
+//                         }
+//                     }
+//                 stage('creating Payment') {
+//                     steps {
+//                         dir('payment') { git branch: 'main', url: 'https://github.com/b56-clouddevops/payment.git'
+//                                 sh ''' 
+//                                     cd mutable-infra
+//                                     terrafile -f env-${ENV}/Terrafile
+//                                     terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
+//                                     terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
+//                                     terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
+//                                 ''' 
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//         stage('creating Frontend') {
+//                 steps {
+//                         dir('frontend') {  git branch: 'main', url: 'https://github.com/b56-clouddevops/frontend.git'
+//                             sh ''' 
+//                                 cd mutable-infra
+//                                 terrafile -f env-${ENV}/Terrafile
+//                                 terraform init --backend-config=env-${ENV}/${ENV}-backend.tfvars -reconfigure
+//                                 terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100
+//                                 terraform apply -var-file=env-${ENV}/${ENV}.tfvars -var APP_VERSION=100 -auto-approve
+//                             ''' 
+//                         }
+//                     }
+//                 }
+//             }
+//         }
