@@ -39,37 +39,46 @@ pipeline {
     stages {
         stage('Creating VPC') {
             steps {
-                dir("VPC") {
-                git branch: 'main', credentialsId: 'GitLabCred', url: 'https://github.com/b56-clouddevops/terraform-vpc.git'
-                        sh "terrafile -f env-dev/Terrafile"
-                        sh "terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars"
-                        sh "terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}"
-                        sh "terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}"
+                dir('VPC') {
+                git branch: 'main', url: 'https://github.com/b56-clouddevops/terraform-vpc.git'
+                        sh '''
+                            terrafile -f env-dev/Terrafile
+                            terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars
+                            terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+                            terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+                        '''
                 }
             }
         }
-        stage('Creating Loadbalancers') {
-            steps {
-                dir("ALB") {
-                git branch: 'main', credentialsId: 'GitLabCred', url: 'https://github.com/b56-clouddevops/terraform-loadbalancers.git'
-                        sh "terrafile -f env-dev/Terrafile"
-                        sh "terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars"
-                        sh "terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}"
-                        sh "terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}"
-                }
-            }
-        }
+
         stage('Creating Databases') {
             steps {
-                dir("DB") {
-                git branch: 'main', credentialsId: 'GitLabCred', url: 'https://github.com/b56-clouddevops/terraform-databases.git'
-                        sh "terrafile -f env-dev/Terrafile"
-                        sh "terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars"
-                        sh "terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}"
-                        sh "terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}"
+                dir('DB') {
+                git branch: 'main', url: 'https://github.com/b56-clouddevops/terraform-databases.git'
+                        sh '''
+                            terrafile -f env-dev/Terrafile
+                            terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars
+                            terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+                            terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+                        '''
                 }
             }
         }
+
+        stage('Creating Loadbalancers') {
+            steps {
+                dir('ALB') {
+                git branch: 'main', url: 'https://github.com/b56-clouddevops/terraform-loadbalancers.git'
+                        sh '''
+                            terrafile -f env-dev/Terrafile
+                            terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars
+                            terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+                            terraform apply -auto-approve -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
+                            '''
+                }
+            }
+        }
+
         stage('Backend') {
             parallel {
                 stage('creating Catalogue') {
