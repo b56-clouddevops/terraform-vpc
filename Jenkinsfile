@@ -56,6 +56,7 @@ pipeline {
                 dir('DB') {
                 git branch: 'main', url: 'https://github.com/b56-clouddevops/terraform-databases.git'
                         sh '''
+                            rm .rf .terraform
                             terrafile -f env-dev/Terrafile
                             terraform init -backend-config=env-${ENV}/${ENV}-backend.tfvars
                             terraform plan -var-file=env-${ENV}/${ENV}.tfvars -var ENV=${ENV}
